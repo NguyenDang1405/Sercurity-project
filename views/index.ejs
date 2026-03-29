@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CVE Intel Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-layer"></div>
+    <main class="container">
+      <header class="hero reveal">
+        <p class="eyebrow">Vulnerability Intelligence</p>
+        <h1>CVE Intel Hub</h1>
+        <p>
+          Tra cứu, lọc và phân tích CVE theo từ khóa, CVSS, vendor, CWE và năm
+          công bố.
+        </p>
+        <p><a class="export-btn" href="/dashboard">Xem Dashboard Phân Tích</a></p>
+      </header>
+
+      <section class="panel reveal delay-1">
+        <form method="GET" action="/" class="search-grid" novalidate>
+          <input
+            type="text"
+            name="keyword"
+            placeholder="Từ khóa (Windows, OpenSSL...)"
+            value="<%= query.keyword || '' %>"
+          />
+          <input
+            type="text"
+            name="vendor"
+            placeholder="Vendor (microsoft, apache...)"
+            value="<%= query.vendor || '' %>"
+          />
+          <input
+            type="text"
+            name="cwe"
+            placeholder="CWE (CWE-79, CWE-89...)"
+            value="<%= query.cwe || '' %>"
+          />
+          <input
+            type="number"
+            name="year"
+            min="1999"
+            max="2100"
+            placeholder="Năm"
+            value="<%= query.year || '' %>"
+          />
+          <input
+            type="number"
+            name="cvssMin"
+            min="0"
+            max="10"
+            step="0.1"
+            placeholder="CVSS min"
+            value="<%= query.cvssMin || '' %>"
+          />
+          <input
+            type="number"
+            name="cvssMax"
+            min="0"
+            max="10"
+            step="0.1"
+            placeholder="CVSS max"
+            value="<%= query.cvssMax || '' %>"
+          />
+          <select name="severity">
+            <option value="">Mức độ</option>
+            <% severityOptions.forEach((s) => { %>
+              <option value="<%= s %>" <%= query.severity === s ? 'selected' : '' %>>
+                <%= s %>
+              </option>
+            <% }) %>
+          </select>
+          <button type="submit">Tìm kiếm</button>
+          <a class="reset-btn" href="/">Xóa bộ lọc</a>
+        </form>
+        <p class="search-hint">Bạn có thể tìm theo từng trường riêng lẻ (keyword, vendor, cwe, year, severity) hoặc kết hợp nhiều trường cùng lúc. CVSS min/max là tùy chọn.</p>
+      </section>
+
+      <section class="panel reveal delay-2">
+        <div class="result-head">
+          <h2>Kết quả</h2>
+          <div class="result-tools">
+            <span><%= result.total %> CVE</span>
+            <% const exportQs = new URLSearchParams(query); %>
+            <% exportQs.delete('page'); %>
+            <% exportQs.delete('pageSize'); %>
+            <a class="export-btn" href="/export/csv?<%= exportQs.toString() %>">Export CSV</a>
+            <a class="export-btn" href="/export/pdf?<%= exportQs.toString() %>">Export PDF</a>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>CVE ID</th>
+                <th>Mô tả</th>
+                <th>CVSS</th>
+                <th>Severity</th>
+                <th>Ngày công bố</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (result.data.length === 0) { %>
+                <tr>
+                  <td colspan="5" class="empty">Không có dữ liệu phù hợp</td>
+                </tr>
+              <% } %>
+              <% result.data.forEach((item) => { %>
+                <tr>
+                  <td>
+                    <a href="/detail/<%= item.cve_id %>"><%= item.cve_id %></a>
+                  </td>
+                  <td><%= item.description %></td>
+                  <td><%= item.cvss_score ?? '-' %></td>
+                  <td>
+                    <span class="badge <%= (item.cvss_severity || 'unknown').toLowerCase() %>">
+                      <%= item.cvss_severity || 'UNKNOWN' %>
+                    </span>
+                  </td>
+                  <td><%= (item.published_date || '').slice(0, 10) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <% const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize)); %>
+          <% const currentPage = result.page; %>
+          <% const qs = new URLSearchParams(query); %>
+
+          <% if (currentPage > 1) { %>
+            <% qs.set('page', currentPage - 1); %>
+            <a href="/?<%= qs.toString() %>">Trang trước</a>
+          <% } %>
+
+          <span>Trang <%= currentPage %>/<%= totalPages %></span>
+
+          <% if (currentPage < totalPages) { %>
+            <% qs.set('page', currentPage + 1); %>
+            <a href="/?<%= qs.toString() %>">Trang sau</a>
+          <% } %>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

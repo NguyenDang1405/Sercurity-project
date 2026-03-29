@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= cve.cve_id %> - CVE Intel Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-layer"></div>
+    <main class="container detail-container">
+      <a href="/" class="back-link">← Quay lại tra cứu</a>
+
+      <section class="panel reveal">
+        <h1><%= cve.cve_id %></h1>
+        <p class="description"><%= cve.description %></p>
+
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span>CVSS</span>
+            <strong><%= cve.cvss_score ?? '-' %> (<%= cve.cvss_version || 'N/A' %>)</strong>
+          </div>
+          <div class="meta-item">
+            <span>Severity</span>
+            <strong><%= cve.cvss_severity || 'UNKNOWN' %></strong>
+          </div>
+          <div class="meta-item">
+            <span>Published</span>
+            <strong><%= (cve.published_date || '').slice(0, 19).replace('T', ' ') %></strong>
+          </div>
+          <div class="meta-item">
+            <span>Last Modified</span>
+            <strong><%= (cve.last_modified_date || '').slice(0, 19).replace('T', ' ') %></strong>
+          </div>
+          <div class="meta-item">
+            <span>CWE</span>
+            <strong><%= cve.cwe || 'N/A' %></strong>
+          </div>
+          <div class="meta-item">
+            <span>Source</span>
+            <strong><%= cve.source_identifier || 'N/A' %></strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel reveal delay-1">
+        <h2>Products/CPEs</h2>
+        <% if (!cve.cpes || cve.cpes.length === 0) { %>
+          <p>Không có dữ liệu CPE cho CVE này từ nguồn NVD/CNA tại thời điểm đồng bộ.</p>
+          <% if (cve.vendors && cve.vendors.length > 0) { %>
+            <p>Vendor liên quan (suy ra từ dữ liệu hiện có): <strong><%= cve.vendors.join(', ') %></strong></p>
+          <% } else { %>
+            <p>Trường hợp này thường xảy ra với advisory mới công bố hoặc bản ghi chưa được chuẩn hóa đầy đủ.</p>
+          <% } %>
+        <% } else { %>
+          <ul class="chip-list">
+            <% cve.cpes.forEach((cpe) => { %>
+              <li><%= cpe %></li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </section>
+
+      <section class="panel reveal delay-2">
+        <h2>References / Patch / Advisory</h2>
+        <% if (!cve.references || cve.references.length === 0) { %>
+          <p>Không có tham chiếu.</p>
+        <% } else { %>
+          <ul class="ref-list">
+            <% cve.references.forEach((ref) => { %>
+              <li>
+                <a href="<%= ref.url %>" target="_blank" rel="noopener noreferrer"><%= ref.url %></a>
+                <% if (ref.source) { %><span> | <%= ref.source %></span><% } %>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </section>
+
+      <section class="panel reveal delay-2">
+        <h2>Khuyến nghị xử lý</h2>
+        <% const severity = ((cve.cvss_severity || 'UNKNOWN') + '').toUpperCase(); %>
+        <% const fallbackSeverityPlan = (severity === 'CRITICAL' || severity === 'HIGH')
+          ? {
+              priority: 'Rất cao',
+              eta: 'Trong 24-72 giờ',
+              summary: 'Ưu tiên xử lý ngay để giảm nguy cơ bị khai thác.',
+              actions: [
+                'Xác định hệ thống bị ảnh hưởng và ưu tiên áp dụng bản vá.',
+                'Giới hạn bề mặt tấn công tạm thời bằng ACL/WAF.',
+                'Giám sát log sau vá để phát hiện dấu hiệu khai thác còn sót.'
+              ]
+            }
+          : (severity === 'MEDIUM')
+            ? {
+                priority: 'Trung bình',
+                eta: 'Trong sprint gần nhất',
+                summary: 'Lên kế hoạch vá sớm và triển khai giảm thiểu tạm thời.',
+                actions: [
+                  'Đưa vào kế hoạch phát hành gần nhất.',
+                  'Giới hạn truy cập endpoint nhạy cảm.',
+                  'Theo dõi cập nhật exploit/advisory mới.'
+                ]
+              }
+            : {
+                priority: 'Thấp/Chưa xác định',
+                eta: 'Theo chu kỳ bảo trì',
+                summary: 'Theo dõi định kỳ và đánh giá lại theo bối cảnh hệ thống.',
+                actions: [
+                  'Gộp xử lý cùng lịch hardening định kỳ.',
+                  'Bổ sung kiểm thử bảo mật hồi quy.',
+                  'Theo dõi cập nhật mới từ vendor.'
+                ]
+              }; %>
+
+        <% const cweText = ((cve.cwe || '') + '').toUpperCase(); %>
+        <% const fallbackProfiles = [];
+           if (cweText.includes('CWE-78') || cweText.includes('CWE-77')) fallbackProfiles.push('Command Injection');
+           if (cweText.includes('CWE-89')) fallbackProfiles.push('SQL Injection');
+           if (cweText.includes('CWE-79')) fallbackProfiles.push('Cross-Site Scripting');
+           if (cweText.includes('CWE-22')) fallbackProfiles.push('Path Traversal');
+           if (cweText.includes('CWE-770') || cweText.includes('CWE-400')) fallbackProfiles.push('Denial of Service');
+           if (fallbackProfiles.length === 0) fallbackProfiles.push('Chung/không xác định rõ loại lỗi');
+        %>
+
+        <% const fallbackGroupActions = [];
+           if (fallbackProfiles.includes('Command Injection')) {
+             fallbackGroupActions.push('Không dùng shell=true với dữ liệu người dùng và áp dụng allowlist input.');
+           }
+           if (fallbackProfiles.includes('SQL Injection')) {
+             fallbackGroupActions.push('Dùng prepared statement cho toàn bộ truy vấn SQL.');
+           }
+           if (fallbackProfiles.includes('Cross-Site Scripting')) {
+             fallbackGroupActions.push('Encode output theo context và bật CSP chặt chẽ.');
+           }
+           if (fallbackProfiles.includes('Path Traversal')) {
+             fallbackGroupActions.push('Chuẩn hóa đường dẫn và chặn .. từ input người dùng.');
+           }
+           if (fallbackProfiles.includes('Denial of Service')) {
+             fallbackGroupActions.push('Bật rate-limit, timeout, và giám sát tài nguyên CPU/RAM.');
+           }
+           if (fallbackGroupActions.length === 0) {
+             fallbackGroupActions.push('Áp dụng hardening chung và theo dõi advisory chính thức của vendor.');
+           }
+        %>
+
+        <% const m = (typeof mitigation !== 'undefined' && mitigation)
+          ? mitigation
+          : {
+              severityPlan: fallbackSeverityPlan,
+              groupPlan: {
+                profiles: fallbackProfiles,
+                actions: fallbackGroupActions
+              },
+              exploitSignal: 'Chưa xác định'
+            };
+        %>
+
+        <h3>1) Theo mức độ nghiêm trọng</h3>
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span>Ưu tiên</span>
+            <strong><%= (m.severityPlan && m.severityPlan.priority) || m.priority %></strong>
+          </div>
+          <div class="meta-item">
+            <span>Thời gian xử lý gợi ý</span>
+            <strong><%= (m.severityPlan && m.severityPlan.eta) || m.eta %></strong>
+          </div>
+          <div class="meta-item">
+            <span>Nhóm lỗi</span>
+            <strong><%= ((m.groupPlan && m.groupPlan.profiles) || m.profiles || []).join(', ') %></strong>
+          </div>
+          <div class="meta-item">
+            <span>Tín hiệu khai thác</span>
+            <strong><%= m.exploitSignal || 'Chưa xác định' %></strong>
+          </div>
+        </div>
+        <p class="mitigation-summary"><%= (m.severityPlan && m.severityPlan.summary) || m.summary %></p>
+        <ul class="ref-list">
+          <% (((m.severityPlan && m.severityPlan.actions) || m.actions || [])).forEach((action) => { %>
+            <li><%= action %></li>
+          <% }) %>
+        </ul>
+
+        <h3>2) Theo nhóm lỗi</h3>
+        <p class="mitigation-summary">Nhóm lỗi xác định: <strong><%= ((m.groupPlan && m.groupPlan.profiles) || m.profiles || []).join(', ') %></strong></p>
+        <ul class="ref-list">
+          <% (((m.groupPlan && m.groupPlan.actions) || []).length ? (m.groupPlan.actions) : ['Chưa đủ dữ liệu để phân nhóm chi tiết.']).forEach((action) => { %>
+            <li><%= action %></li>
+          <% }) %>
+        </ul>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - CVE Intel Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-layer"></div>
+    <main class="container">
+      <a href="/" class="back-link">← Quay lại tra cứu</a>
+
+      <section class="panel reveal">
+        <h1>Dashboard Phân Tích CVE</h1>
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span>Tổng số CVE</span>
+            <strong><%= stats.summary.totalCves %></strong>
+          </div>
+          <div class="meta-item">
+            <span>CVSS trung bình</span>
+            <strong><%= stats.summary.avgCvss ?? 'N/A' %></strong>
+          </div>
+          <div class="meta-item">
+            <span>CVE rủi ro cao (>=7.0)</span>
+            <strong><%= advanced.riskMetrics.totalHighRisk %>/<%= advanced.riskMetrics.totalWithCvss %></strong>
+          </div>
+          <div class="meta-item">
+            <span>Tỷ lệ rủi ro cao</span>
+            <strong><%= advanced.riskMetrics.highRiskRatio %>%</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel reveal delay-1">
+        <h2>Biểu đồ tổng quan</h2>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>Severity Distribution</h3>
+            <canvas id="severityChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>CVE Theo Năm</h3>
+            <canvas id="yearChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Top Vendor</h3>
+            <canvas id="vendorChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Top CWE</h3>
+            <canvas id="cweChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel reveal delay-1">
+        <h2>Phân bố theo Severity</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Severity</th><th>Số lượng</th></tr>
+            </thead>
+            <tbody>
+              <% stats.bySeverity.forEach((item) => { %>
+                <tr>
+                  <td><%= item.severity %></td>
+                  <td><%= item.total %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel reveal delay-1">
+        <h2>Top Vendor bị ảnh hưởng</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Vendor</th><th>Số lượng</th></tr>
+            </thead>
+            <tbody>
+              <% if (!advanced.topVendors.length) { %>
+                <tr><td colspan="2" class="empty">Chưa có dữ liệu vendor</td></tr>
+              <% } %>
+              <% advanced.topVendors.forEach((item) => { %>
+                <tr>
+                  <td><%= item.name %></td>
+                  <td><%= item.total %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel reveal delay-2">
+        <h2>Top CWE</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>CWE</th><th>Số lượng</th></tr>
+            </thead>
+            <tbody>
+              <% if (!advanced.topCwes.length) { %>
+                <tr><td colspan="2" class="empty">Chưa có dữ liệu CWE</td></tr>
+              <% } %>
+              <% advanced.topCwes.forEach((item) => { %>
+                <tr>
+                  <td><%= item.name %></td>
+                  <td><%= item.total %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel reveal delay-2">
+        <h2>Lịch sử đồng bộ gần đây</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Thời điểm</th>
+                <th>Fetched</th>
+                <th>Stored</th>
+                <th>Trạng thái</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (!syncHistory.length) { %>
+                <tr><td colspan="5" class="empty">Chưa có lịch sử đồng bộ</td></tr>
+              <% } %>
+              <% syncHistory.forEach((row) => { %>
+                <tr>
+                  <td><%= (row.finished_at || '').slice(0, 19).replace('T', ' ') %></td>
+                  <td><%= row.total_fetched %></td>
+                  <td><%= row.total_stored %></td>
+                  <td><%= row.status %></td>
+                  <td><%= row.note || '-' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script id="dashboard-data" type="application/json">
+      <%- JSON.stringify({
+            bySeverity: stats.bySeverity,
+            byYear: stats.byYear,
+            topVendors: advanced.topVendors,
+            topCwes: advanced.topCwes
+          }).replace(/</g, "\\u003c") %>
+    </script>
+    <script>
+      const payloadEl = document.getElementById("dashboard-data");
+      const payload = JSON.parse(payloadEl.textContent || "{}");
+
+      const severityLabels = (payload.bySeverity || []).map((x) => x.severity);
+      const severityValues = (payload.bySeverity || []).map((x) => Number(x.total || 0));
+
+      const yearLabels = (payload.byYear || []).map((x) => x.year).reverse();
+      const yearValues = (payload.byYear || []).map((x) => Number(x.total || 0)).reverse();
+
+      const vendorLabels = (payload.topVendors || []).map((x) => x.name);
+      const vendorValues = (payload.topVendors || []).map((x) => Number(x.total || 0));
+
+      const cweLabels = (payload.topCwes || []).map((x) => x.name);
+      const cweValues = (payload.topCwes || []).map((x) => Number(x.total || 0));
+
+      const sharedOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: {
+              color: "#dce8ff"
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: "#dce8ff" },
+            grid: { color: "rgba(255,255,255,0.08)" }
+          },
+          y: {
+            ticks: { color: "#dce8ff" },
+            grid: { color: "rgba(255,255,255,0.08)" }
+          }
+        }
+      };
+
+      new Chart(document.getElementById("severityChart"), {
+        type: "doughnut",
+        data: {
+          labels: severityLabels,
+          datasets: [
+            {
+              data: severityValues,
+              backgroundColor: ["#ff5f5f", "#ff8f3f", "#ffd166", "#56f39a", "#9bb1d1", "#6ad1ff"]
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: "#dce8ff" }
+            }
+          }
+        }
+      });
+
+      new Chart(document.getElementById("yearChart"), {
+        type: "line",
+        data: {
+          labels: yearLabels,
+          datasets: [
+            {
+              label: "CVE Count",
+              data: yearValues,
+              borderColor: "#8dd6ff",
+              backgroundColor: "rgba(141, 214, 255, 0.25)",
+              fill: true,
+              tension: 0.2
+            }
+          ]
+        },
+        options: sharedOptions
+      });
+
+      new Chart(document.getElementById("vendorChart"), {
+        type: "bar",
+        data: {
+          labels: vendorLabels,
+          datasets: [
+            {
+              label: "Top Vendor",
+              data: vendorValues,
+              backgroundColor: "rgba(255, 191, 71, 0.75)"
+            }
+          ]
+        },
+        options: sharedOptions
+      });
+
+      new Chart(document.getElementById("cweChart"), {
+        type: "bar",
+        data: {
+          labels: cweLabels,
+          datasets: [
+            {
+              label: "Top CWE",
+              data: cweValues,
+              backgroundColor: "rgba(86, 243, 154, 0.75)"
+            }
+          ]
+        },
+        options: sharedOptions
+      });
+    </script>
+  </body>
+</html>
