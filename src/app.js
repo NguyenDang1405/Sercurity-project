@@ -34,6 +34,19 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal server error" });
 });
 
+let runtimeInitPromise = null;
+
+function initRuntime() {
+  if (!runtimeInitPromise) {
+    runtimeInitPromise = (async () => {
+      await repository.init();
+      await initCache();
+    })();
+  }
+
+  return runtimeInitPromise;
+}
+
 function startHttpServer(startPort) {
   const maxAttempts = 20;
 
@@ -60,13 +73,20 @@ function startHttpServer(startPort) {
   tryListen(startPort, maxAttempts);
 }
 
-async function bootstrap() {
-  await repository.init();
-  await initCache();
+async function startLocalServer() {
+  await initRuntime();
   startHttpServer(config.port);
 }
 
-bootstrap().catch((error) => {
-  console.error("Failed to bootstrap application", error);
-  process.exit(1);
-});
+if (require.main === module) {
+  startLocalServer().catch((error) => {
+    console.error("Failed to bootstrap application", error);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  app,
+  initRuntime,
+  startLocalServer
+};

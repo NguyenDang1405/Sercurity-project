@@ -111,3 +111,13 @@ POST /api/sync
 - Khi can scale nhieu user dong thoi, dat `DB_CLIENT=postgres` va cau hinh `POSTGRES_URL`.
 - Neu bat Redis, cache `/search` va `/api/search` se tu dong hoat dong.
 - UI da co nut export nhanh CSV/PDF tu bo loc hien tai.
+
+## 9. Trien khai Vercel
+- Da cau hinh serverless entrypoint tai `api/index.js` va `vercel.json`.
+- Khuyen nghi dung `DB_CLIENT=postgres` tren Vercel de co du lieu ben vung.
+- Neu de `DB_CLIENT=sqlite`, he thong se dung `/tmp/cves.db` (du lieu tam thoi, mat sau moi lan cold start/redeploy).
+- Can set env tren Vercel:
+	- `DB_CLIENT=postgres`
+	- `POSTGRES_URL=<your-postgres-connection-string>`
+	- `POSTGRES_SSL=true` (neu nha cung cap yeu cau SSL)
+	- `NVD_API_KEY=<your-key>` (khuyen nghi)
